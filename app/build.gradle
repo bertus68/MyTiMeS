@@ -20,5 +20,6 @@ android {
 }
 
 dependencies {
+	compile("com.h2database:h2")
     compile fileTree(dir: 'libs', include: ['*.jar'])
 }
