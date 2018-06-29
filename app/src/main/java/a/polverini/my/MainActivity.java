@@ -17,73 +17,69 @@ import java.sql.*;
 import a.polverini.my.MainActivity.*;
 import android.view.*;
 import a.polverini.my.MainActivity.Stack.*;
+import java.text.*;
+import android.view.View.*;
+import android.view.autofill.*;
+import android.content.SharedPreferences.*;
 
 public class MainActivity extends Activity 
 {
-	private boolean verbose = false;
+	// Preferences
+	private static final String TOPDIR = "topdir";
+	private static final String SQLDIR = "sqldir";
+	private static final String XMLDIR = "xmldir";
+	private static final String HTMDIR = "htmdir";
+	private static final String REPOS  = "repos";
+	private static final String XMLURL = "xmlurl";
+	private static final String GITURL = "giturl";
 	
-	private File egscc;
-	private File sqldir;
-	private File xmldir;
-	private File htmldir;
-	private File giturl;
-	private File xmlurl;
-	
+	private boolean verbose = true;
 	private HtmlHandler handler;
 	private ProgressBar progress; 
 	private WebView webView;
+	private Menu menu;
+	
+	private SharedPreferences preferences;
+	private File topdir;
+	private File sqldir;
+	private File xmldir;
+	private File htmldir;
+	
+	
 	private Stack stack;
 	private DB db;
 	private XML xml;
 	private Map<String, Specification> specifications = new HashMap <>();
 	private Map<String, Results> testResults = new HashMap <>();
-	private String[] repos = new String[] { };
 	
-	public String htmlTreeStyle() {
-		String html = "";
-		html+="<style>";
-		html+=".tree { position:relative; list-style:none; margin-left:0; padding-left:1.2em; }";
-		html+=".closed:before { content:\"+\"; position:absolute; left:0; }";
-		html+=".open:before   { content:\"-\"; position:absolute; left:0; }";
-		html+=".none:before   { content:\"\";  position:absolute; left:0; }";
-		html+="</style>";
-		return html;
-	}
-
-	public String jsToggleAll() {
-		String html = "";
-		html+="  $('.tree').find('UL').toggle(0);";
-		return html;
-	}
-
-	public String jsToggle() {
-		String html = "";
-		html+="  $('.tree').find('SPAN').click(function(e){";
-		html+="	   $(this).parent().children().toggle();";
-		html+="	   $(this).toggle();";
-		html+="	   if($(this).parent().is('.closed')) {";
-		html+="	       $(this).parent().removeClass('closed');";
-		html+="	       $(this).parent().addClass('open');";
-		html+="	   } else {";
-		html+="	     if($(this).parent().is('.open')) {";
-		html+="	       $(this).parent().removeClass('open');";
-		html+="	       $(this).parent().addClass('closed');";
-		html+="      }";
-		html+="    }";
-		html+="	 });";
-		return html;
-	}
-
-	public String htmlScript() {
-		String html = "";
-		html+="<script src=\"http://code.jquery.com/jquery-1.10.1.min.js\"></script>";
-		html+="<script type=\"text/javascript\">";
-		html+="$(function(){";
-		html+=jsToggleAll();
-		html+=jsToggle();
-		html+="});";
-		html+="</script>";
-		return html;
+	
+	void importPreferences(String path) {
+		try {
+			println("importPreferences...");
+			File file = new File(topdir, path);
+			Properties properties = new Properties();
+			properties.loadFromXML(new FileInputStream(file));
+			SharedPreferences.Editor editor = preferences.edit();
+			for (Object key : properties.keySet())
+			{
+				if (key instanceof String)
+ {
+					Object value = properties.get(key);
+					if(value instanceof String) {
+						println("set %s=%s",(String)key,(String)value);
+						editor.putString((String)key, (String)value);
+					}
+					
+				}
+			}
+			editor.apply();
+			editor.commit();
+			String repos = preferences.getString("repos", "");
+			println("get %s=%s","repos",repos);
+			
+		} catch (Exception e) {
+			print(e);
+		}
 	}
 	
     @Override
@@ -92,23 +88,8 @@ public class MainActivity extends Activity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 		
-		egscc = new File(Environment.getExternalStorageDirectory(), "egscc");
+		preferences = getPreferences(Context.MODE_PRIVATE);
 		
-		sqldir = new File(egscc, "sql");
-		if(!sqldir.exists()) {
-			sqldir.mkdirs();
-		}
-		
-		xmldir = new File(egscc, "xml");
-		if(!xmldir.exists()) {
-			xmldir.mkdirs();
-		}
-		
-		htmldir = new File(egscc, "html");
-		if(!htmldir.exists()) {
-			htmldir.mkdirs();
-		}
-
 		progress = this.findViewById(R.id.PROGRESS);
 
 		webView = this.findViewById(R.id.WEBVIEW);
@@ -118,8 +99,26 @@ public class MainActivity extends Activity
 		webView.addJavascriptInterface(new MyWebAppInterface(this), "webAppInterface"); 
 
 		handler = new HtmlHandler(webView);
-		print("<h1>MyTMS v0.8.0</h1>");
+		print("<h1>MyTMS v0.8.0a</h1>");
 		print("A.Polverini (2018)<p/>");
+		
+		topdir = new File(Environment.getExternalStorageDirectory(), preferences.getString(TOPDIR, "tmp"));
+		//importPreferences(".times.xml");
+		
+		sqldir = new File(topdir,  preferences.getString(SQLDIR, "sql"));
+		if(!sqldir.exists()) {
+			sqldir.mkdirs();
+		}
+
+		xmldir = new File(topdir, preferences.getString(XMLDIR, "xml"));
+		if(!xmldir.exists()) {
+			xmldir.mkdirs();
+		}
+
+		htmldir = new File(topdir, preferences.getString(HTMDIR, "html"));
+		if(!htmldir.exists()) {
+			htmldir.mkdirs();
+		}
 		
 		try {
 			db = new DB();
@@ -134,6 +133,7 @@ public class MainActivity extends Activity
 		}
 
 		stack = new Stack();
+		
     }
 	
 	@Override 
@@ -153,31 +153,43 @@ public class MainActivity extends Activity
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.main, menu);
+		this.menu = menu;
 		return true;
 	}
 
 	@Override public boolean onOptionsItemSelected(MenuItem item) {
-		switch (item.getItemId()) {
-			case R.id.LOGIN:
-				authenticateDialog();
-				return true;
-			case R.id.DOWNLOAD:
-				stack.execute(new Download(), repos);
-				return true;
-			case R.id.IMPORT:
-				stack.execute(new Import(), repos);
-				return true;
-			case R.id.QUERY:
-				stack.execute(new Query(), repos);
-				return true;
-			case R.id.LOAD:
-				stack.execute(new Load(), repos);
-				return true;
-			default:
-				return super.onOptionsItemSelected(item);
+		try {
+			switch (item.getItemId()) {
+				case R.id.LOGIN:
+					authenticateDialog();
+					break;
+				case R.id.PREFERENCES:
+					preferencesDialog();
+					break;
+				case R.id.REPOS:
+					reposDialog();
+					break;
+				case R.id.DOWNLOAD:
+					stack.execute(new Download(), preferences.getString(REPOS, "").split(","));
+					break;
+				case R.id.IMPORT:
+					stack.execute(new Import(), preferences.getString(REPOS, "").split(","));
+					break;
+				case R.id.QUERY:
+					stack.execute(new Query(), preferences.getString(REPOS, "").split(","));
+					break;
+				case R.id.LOAD:
+					stack.execute(new Load(), preferences.getString(REPOS, "").split(","));
+					break;
+				default:
+					return super.onOptionsItemSelected(item);
+			}
+		} catch(Exception e) {
+			print(e);
 		}
+		return true;
 	}
-	
+		
 	public static class MyFileWriter extends PrintWriter {
 
 		private String name;
@@ -216,6 +228,8 @@ public class MainActivity extends Activity
 			File file = writeIndex(args);
 			if(file!=null) {
 				command("load file://"+file.getAbsolutePath());
+			} else {
+				print(new Error("no index.html"));
 			}
 			publishProgress(1);
 			return "ok";
@@ -229,7 +243,7 @@ public class MainActivity extends Activity
 
         @Override
         protected void onPostExecute(String result) {
-            println(TAG+" "+result);
+            //println(TAG+" "+result);
 			progress.setVisibility(ProgressBar.INVISIBLE);
 			stack.completed(this);
 			super.onPostExecute(result);
@@ -279,9 +293,15 @@ public class MainActivity extends Activity
 		
 		@Override
         protected String doInBackground(String... args) {
+			if(db==null || xml==null) {
+				return "fail";
+			}
 			println(TAG+"...");
+			
 			progress.setMax(args.length);
 			for(int i=0; i<args.length; i++) {
+				println(TAG+" "+args[i]+" ... ");
+				
 				try {
 					db.download(args[i], "dev");
 				} catch (Exception e) {
@@ -296,6 +316,7 @@ public class MainActivity extends Activity
 				
 				publishProgress(i);
 			}
+			
             return "ok";
         }
 
@@ -334,9 +355,13 @@ public class MainActivity extends Activity
 		
 		@Override
         protected String doInBackground(String... args) {
+			if(db==null) {
+				return "fail";
+			}
 			println(TAG+"...");
 			progress.setMax(args.length);
 			for(int i=0;i<args.length;i++) {
+				println(TAG+" "+args[i]+" ... ");
 				db.importSQL(args[i]);
 				publishProgress(i);
 			}
@@ -389,7 +414,8 @@ public class MainActivity extends Activity
 			}
 
 			for(int i = 0; i<args.length; i++) {
-
+				println(TAG+" "+args[i]+" ... ");
+				
 				try {
 					Specification specification = new Specification();
 					specification.query(args[i]);
@@ -1105,8 +1131,8 @@ public class MainActivity extends Activity
 				html.println("<html>");
 				html.println("<head>");
 				html.println("<title>"+name+"</title>");
-				html.println(htmlTreeStyle());
-				html.println(htmlScript());
+				html.println(HTML.treeStyle());
+				html.println(HTML.script());
 				html.println("</head>");
 				html.println("<body>");
 				html.println("<H1>"+name+"</H1>");
@@ -2704,6 +2730,7 @@ public class MainActivity extends Activity
 		}
 		
 		public void completed(AsyncTask task) {
+			webView.scrollTo(0, webView.getContentHeight());
 			Iterator<Entry> i = tasks.iterator();
 			Entry next = null;
 			while(i.hasNext()) {
@@ -2727,7 +2754,7 @@ public class MainActivity extends Activity
 		}
 
 		private String getURL(String name) {
-			return String.format("%s/%s-val-results.xml", xmlurl, name);
+			return String.format("%s/%s-val-results.xml", preferences.getString(XMLURL, "."), name);
 		}
 
 		private String getPath(String name) {
@@ -2799,7 +2826,7 @@ public class MainActivity extends Activity
 		}
 
 		private String getURL(String name, String branch) {
-			return String.format("%s/%s.git/%s/vtest!db!%s-val-spec.sql", giturl, name, branch, name);
+			return String.format("%s/%s.git/%s/vtest!db!%s-val-spec.sql", preferences.getString(GITURL, "."), name, branch, name);
 		}
 
 		private String getPath(String name) {
@@ -3026,6 +3053,56 @@ public class MainActivity extends Activity
 		}
 		
 	}
+	public static class HTML {
+
+		public static String treeStyle() {
+			String html = "";
+			html+="<style>";
+			html+=".tree { position:relative; list-style:none; margin-left:0; padding-left:1.2em; }";
+			html+=".closed:before { content:\"+\"; position:absolute; left:0; }";
+			html+=".open:before   { content:\"-\"; position:absolute; left:0; }";
+			html+=".none:before   { content:\"\";  position:absolute; left:0; }";
+			html+="</style>";
+			return html;
+		}
+
+		public static String script() {
+			String html = "";
+			html+="<script src=\"http://code.jquery.com/jquery-1.10.1.min.js\"></script>";
+			html+="<script type=\"text/javascript\">";
+			html+="$(function(){";
+			html+=jsToggleAll();
+			html+=jsToggle();
+			html+="});";
+			html+="</script>";
+			return html;
+		}
+
+		public static String jsToggleAll() {
+			String html = "";
+			html+="  $('.tree').find('UL').toggle(0);";
+			return html;
+		}
+
+		public static String jsToggle() {
+			String html = "";
+			html+="  $('.tree').find('SPAN').click(function(e){";
+			html+="	   $(this).parent().children().toggle();";
+			html+="	   $(this).toggle();";
+			html+="	   if($(this).parent().is('.closed')) {";
+			html+="	       $(this).parent().removeClass('closed');";
+			html+="	       $(this).parent().addClass('open');";
+			html+="	   } else {";
+			html+="	     if($(this).parent().is('.open')) {";
+			html+="	       $(this).parent().removeClass('open');";
+			html+="	       $(this).parent().addClass('closed');";
+			html+="      }";
+			html+="    }";
+			html+="	 });";
+			return html;
+		}
+
+	}
 	
 	public class MyWebAppInterface {
 
@@ -3108,6 +3185,7 @@ public class MainActivity extends Activity
 	}
 	
 	public void command(String s) {
+		print("command..."+s);
 		handler.obtainMessage(0, s).sendToTarget();
 	}
 
@@ -3127,7 +3205,7 @@ public class MainActivity extends Activity
 	public void print(Exception e, String fmt, Object... args) {
 		String s = String.format(fmt, args);
 		String color = (e instanceof Warning) ? "orange" : "red";
-		println("<p style='color:%s'>%s %s %s</p>", color, e.getClass().getSimpleName(), e.getMessage(), s);
+		println("<span style='color:%s'>%s %s %s</span>", color, e.getClass().getSimpleName(), e.getMessage(), s);
 		if(verbose) {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
@@ -3141,20 +3219,131 @@ public class MainActivity extends Activity
 		print(e, "");
 	}
 	
-	public void authenticateDialog() {
+	class Settings {
+		final String TAG = "Settings";
+		final Properties properties = new Properties();
+		final File file = new File(topdir, ".times.xml");
+
+		void load() {
+			try {
+				if(verbose) println(TAG+".load()..."+file.getAbsolutePath());
+				properties.loadFromXML(new FileInputStream(file));
+			} catch (Exception e) {
+				print(e);
+			}
+		}
+
+		void save() {
+			try {
+				if(verbose) println(TAG+".save()..."+file.getAbsolutePath());
+				SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				properties.storeToXML(new FileOutputStream(file), sdf.format(System.currentTimeMillis()));
+			} catch (Exception e) {
+				print(e);
+			}
+		}
+
+		String getProperty(String key, String defaultValue)  {
+			return properties.getProperty(key, defaultValue);
+		}
+
+		void setProperty(String key, String value)  {
+			properties.setProperty(key, value);
+		}
+
+	}
+
+	public void preferencesDialog() {
+		
 		LayoutInflater layout = LayoutInflater.from(this);
-        View view = layout.inflate(R.layout.login, null);
-        AlertDialog.Builder loginDialog = new AlertDialog.Builder(this);
-        loginDialog.setView(view);
-        final EditText user = view.findViewById(R.id.USERNAME);
-        final EditText pass = view.findViewById(R.id.PASSWORD);
-		loginDialog.setTitle("LOGIN");
-        loginDialog.setCancelable(false).setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        View view = layout.inflate(R.layout.config, null);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(view);
+		
+        final EditText git = view.findViewById(R.id.GIT_URL);
+		git.setText(preferences.getString(GITURL, ""));
+		
+        final EditText xml = view.findViewById(R.id.XML_URL);
+		xml.setText(preferences.getString(XMLURL, ""));
+		
+		builder.setTitle("PREFERENCES");
+        builder.setCancelable(false).setPositiveButton("OK", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int id) {
 					try {
-						String password = pass.getText().toString();
-						String username = user.getText().toString();
+						String giturl = git.getText().toString();
+						String xmlurl = xml.getText().toString();
+						if(giturl==null || xmlurl==null) { 
+							Toast.makeText(MainActivity.this,"Invalid GIT or XML URL", Toast.LENGTH_LONG).show();
+							preferencesDialog();
+							return;
+						}
+						preferences.edit().putString(GITURL, giturl);
+						preferences.edit().putString(XMLURL, xmlurl);
+						preferences.edit().commit();
+					} catch(Exception e) {
+						Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+					}
+				}
+			});
+		builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int id) {                       
+					dialog.cancel();
+				}
+			});
+		builder.show();                                     
+    }
+	
+	public void reposDialog() {
+		
+		LayoutInflater layout = LayoutInflater.from(this);
+        View view = layout.inflate(R.layout.repos, null);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(view);
+        final EditText reposText = view.findViewById(R.id.REPOS);
+		reposText.setText(preferences.getString(REPOS, "")); 
+        builder.setTitle("REPOS");
+        builder.setCancelable(false).setPositiveButton("OK", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int id) {
+					try {
+						final String repos = reposText.getText().toString();
+						if(repos==null) { 
+							Toast.makeText(MainActivity.this,"Invalid repos", Toast.LENGTH_LONG).show();
+							reposDialog();
+							return;
+						}
+						preferences.edit().putString(REPOS, repos);
+						preferences.edit().commit();
+					} catch(Exception e) {
+						Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+					}
+				}
+			});
+		builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int id) {                       
+					dialog.cancel();
+				}
+			});
+		builder.show();   
+	}
+	
+	public void authenticateDialog() {
+		LayoutInflater layout = LayoutInflater.from(this);
+        View view = layout.inflate(R.layout.login, null);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(view);
+        final EditText user = view.findViewById(R.id.USERNAME);
+        final EditText pass = view.findViewById(R.id.PASSWORD);
+		builder.setTitle("LOGIN");
+        builder.setCancelable(false).setPositiveButton("OK", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int id) {
+					try {
+						final String password = pass.getText().toString();
+						final String username = user.getText().toString();
 						if(username==null || password==null) { 
 							Toast.makeText(MainActivity.this,"Invalid username or password", Toast.LENGTH_LONG).show();
 							authenticateDialog();
@@ -3166,13 +3355,13 @@ public class MainActivity extends Activity
 					}
 				}
 			});
-		loginDialog.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+		builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int id) {                       
 					dialog.cancel();
 				}
 			});
-		loginDialog.show();                                     
+		builder.show();                                     
     }
 
 	public void authenticate(final String user, final String pswd) {
@@ -3182,6 +3371,8 @@ public class MainActivity extends Activity
 					return new PasswordAuthentication(user, pswd.toCharArray());
 				}
 			});
+		MenuItem item = menu.findItem(R.id.LOGIN);
+		item.setIcon(getResources().getDrawable(R.drawable.user2));
 	}
 	
 }

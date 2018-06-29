@@ -1,0 +1,34 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    
+	<item 
+		android:id="@+id/LOGIN" 
+		android:orderInCategory="100" 
+		android:showAsAction="always"
+		android:icon="@drawable/user1" 
+		android:title="Refresh"/> 
+	
+	<item
+        android:id="@+id/PREFERENCES"
+        android:title="Preferences"/>
+	
+	<item
+        android:id="@+id/REPOS"
+        android:title="Repos"/>
+
+    <item
+        android:id="@+id/DOWNLOAD"
+        android:title="Download"/>
+	
+	<item
+        android:id="@+id/IMPORT"
+        android:title="Import"/>
+	
+	<item
+        android:id="@+id/QUERY"
+        android:title="Query"/>
+	
+	<item
+        android:id="@+id/LOAD"
+        android:title="Load"/>
+	
+</menu>
