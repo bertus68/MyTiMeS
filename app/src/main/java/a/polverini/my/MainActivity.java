@@ -21,18 +21,10 @@ import java.text.*;
 import android.view.View.*;
 import android.view.autofill.*;
 import android.content.SharedPreferences.*;
+import android.preference.*;
 
 public class MainActivity extends Activity 
 {
-	// Preferences
-	private static final String TOPDIR = "topdir";
-	private static final String SQLDIR = "sqldir";
-	private static final String XMLDIR = "xmldir";
-	private static final String HTMDIR = "htmdir";
-	private static final String REPOS  = "repos";
-	private static final String XMLURL = "xmlurl";
-	private static final String GITURL = "giturl";
-	
 	private boolean verbose = true;
 	private HtmlHandler handler;
 	private ProgressBar progress; 
@@ -40,11 +32,10 @@ public class MainActivity extends Activity
 	private Menu menu;
 	
 	private SharedPreferences preferences;
-	private File topdir;
+	private File rootdir;
 	private File sqldir;
 	private File xmldir;
 	private File htmldir;
-	
 	
 	private Stack stack;
 	private DB db;
@@ -52,31 +43,22 @@ public class MainActivity extends Activity
 	private Map<String, Specification> specifications = new HashMap <>();
 	private Map<String, Results> testResults = new HashMap <>();
 	
-	
 	void importPreferences(String path) {
 		try {
-			println("importPreferences...");
-			File file = new File(topdir, path);
+			File file = new File(rootdir, path);
 			Properties properties = new Properties();
 			properties.loadFromXML(new FileInputStream(file));
 			SharedPreferences.Editor editor = preferences.edit();
-			for (Object key : properties.keySet())
-			{
-				if (key instanceof String)
- {
+			for (Object key : properties.keySet()) {
+				if(key instanceof String) {
 					Object value = properties.get(key);
 					if(value instanceof String) {
-						println("set %s=%s",(String)key,(String)value);
 						editor.putString((String)key, (String)value);
 					}
-					
 				}
 			}
 			editor.apply();
 			editor.commit();
-			String repos = preferences.getString("repos", "");
-			println("get %s=%s","repos",repos);
-			
 		} catch (Exception e) {
 			print(e);
 		}
@@ -88,8 +70,6 @@ public class MainActivity extends Activity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 		
-		preferences = getPreferences(Context.MODE_PRIVATE);
-		
 		progress = this.findViewById(R.id.PROGRESS);
 
 		webView = this.findViewById(R.id.WEBVIEW);
@@ -99,26 +79,22 @@ public class MainActivity extends Activity
 		webView.addJavascriptInterface(new MyWebAppInterface(this), "webAppInterface"); 
 
 		handler = new HtmlHandler(webView);
-		print("<h1>MyTMS v0.8.0a</h1>");
+		print("<h1>MyTiMeS v0.8.0</h1>");
 		print("A.Polverini (2018)<p/>");
 		
-		topdir = new File(Environment.getExternalStorageDirectory(), preferences.getString(TOPDIR, "tmp"));
-		//importPreferences(".times.xml");
+		preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext()); 
+		preferences.registerOnSharedPreferenceChangeListener(new SharedPreferences.OnSharedPreferenceChangeListener() {
+				@Override
+				public void onSharedPreferenceChanged(SharedPreferences preferences, String key) {
+					updatePreference(preferences, key);
+				}
+			});
 		
-		sqldir = new File(topdir,  preferences.getString(SQLDIR, "sql"));
-		if(!sqldir.exists()) {
-			sqldir.mkdirs();
-		}
-
-		xmldir = new File(topdir, preferences.getString(XMLDIR, "xml"));
-		if(!xmldir.exists()) {
-			xmldir.mkdirs();
-		}
-
-		htmldir = new File(topdir, preferences.getString(HTMDIR, "html"));
-		if(!htmldir.exists()) {
-			htmldir.mkdirs();
-		}
+		updatePreference(preferences, "verbose");
+		updatePreference(preferences, "rootdir");
+		updatePreference(preferences, "giturl");
+		updatePreference(preferences, "xmlurl");
+		updatePreference(preferences, "repos");
 		
 		try {
 			db = new DB();
@@ -133,8 +109,55 @@ public class MainActivity extends Activity
 		}
 
 		stack = new Stack();
-		
     }
+	
+	private void updatePreference(SharedPreferences preferences, String key) {
+		try {
+			switch(key) {
+				case "verbose":
+					verbose = preferences.getBoolean("verbose", false);
+					println("%s = %s",key,verbose?"si":"no");
+					break;
+				case "rootdir":
+					rootdir = new File(Environment.getExternalStorageDirectory(), preferences.getString("rootdir", "tmp"));
+					println("%s = %s",key,rootdir.getAbsolutePath());
+					
+					sqldir = new File(rootdir, "sql");
+					if(!sqldir.exists()) {
+						sqldir.mkdirs();
+					}
+
+					xmldir = new File(rootdir, "xml");
+					if(!xmldir.exists()) {
+						xmldir.mkdirs();
+					}
+
+					htmldir = new File(rootdir, "html");
+					if(!htmldir.exists()) {
+						htmldir.mkdirs();
+					}
+					
+					break;
+				case "giturl":
+					println("%s = %s",key,preferences.getString(key, ""));
+					break;
+				case "xmlurl":
+					println("%s = %s",key,preferences.getString(key, ""));
+					break;
+				case "repos":
+					println("%s:",key);
+					for(String repo : preferences.getString(key, "").trim().split("\n")) {
+						println(" + %s",repo);
+					}
+					break;
+				default:
+					println("%s",key);
+					break;
+			}
+		} catch (Exception e) {
+			print(e);
+		}
+	}
 	
 	@Override 
 	protected void onDestroy() { 
@@ -164,22 +187,22 @@ public class MainActivity extends Activity
 					authenticateDialog();
 					break;
 				case R.id.PREFERENCES:
-					preferencesDialog();
+					startPreferencesActivity();
 					break;
 				case R.id.REPOS:
 					reposDialog();
 					break;
 				case R.id.DOWNLOAD:
-					stack.execute(new Download(), preferences.getString(REPOS, "").split(","));
+					stack.execute(new Download(), preferences.getString("repos", "").trim().split("\n"));
 					break;
 				case R.id.IMPORT:
-					stack.execute(new Import(), preferences.getString(REPOS, "").split(","));
+					stack.execute(new Import(), preferences.getString("repos", "").trim().split("\n"));
 					break;
 				case R.id.QUERY:
-					stack.execute(new Query(), preferences.getString(REPOS, "").split(","));
+					stack.execute(new Query(), preferences.getString("repos", "").trim().split("\n"));
 					break;
 				case R.id.LOAD:
-					stack.execute(new Load(), preferences.getString(REPOS, "").split(","));
+					stack.execute(new Load(), preferences.getString("repos", "").trim().split("\n"));
 					break;
 				default:
 					return super.onOptionsItemSelected(item);
@@ -189,7 +212,33 @@ public class MainActivity extends Activity
 		}
 		return true;
 	}
+	
+	private void startPreferencesActivity() {
+		try {
+			Intent intent = new Intent(this, MyPreferencesActivity.class);
+			startActivity(intent);
+		} catch(Exception e) {
+			print(e);
+		}
+	}
+	
+	public static class MyPreferencesActivity extends PreferenceActivity {
 		
+		@Override
+		protected void onCreate(Bundle savedInstanceState) { 
+			super.onCreate(savedInstanceState); 
+			getFragmentManager().beginTransaction().replace(android.R.id.content, new MyPreferenceFragment()).commit(); 
+		} 
+		
+		public static class MyPreferenceFragment extends PreferenceFragment { 
+			@Override 
+			public void onCreate(final Bundle savedInstanceState) { 
+				super.onCreate(savedInstanceState); 
+				addPreferencesFromResource(R.xml.preferences); 
+			} 
+		} 
+	}
+	
 	public static class MyFileWriter extends PrintWriter {
 
 		private String name;
@@ -2754,7 +2803,7 @@ public class MainActivity extends Activity
 		}
 
 		private String getURL(String name) {
-			return String.format("%s/%s-val-results.xml", preferences.getString(XMLURL, "."), name);
+			return String.format("%s/%s-val-results.xml", preferences.getString("xmlurl", "."), name);
 		}
 
 		private String getPath(String name) {
@@ -2826,7 +2875,7 @@ public class MainActivity extends Activity
 		}
 
 		private String getURL(String name, String branch) {
-			return String.format("%s/%s.git/%s/vtest!db!%s-val-spec.sql", preferences.getString(GITURL, "."), name, branch, name);
+			return String.format("%s/%s.git/%s/vtest!db!%s-val-spec.sql", preferences.getString("giturl", "."), name, branch, name);
 		}
 
 		private String getPath(String name) {
@@ -3222,7 +3271,7 @@ public class MainActivity extends Activity
 	class Settings {
 		final String TAG = "Settings";
 		final Properties properties = new Properties();
-		final File file = new File(topdir, ".times.xml");
+		final File file = new File(rootdir, ".times.xml");
 
 		void load() {
 			try {
@@ -3252,48 +3301,6 @@ public class MainActivity extends Activity
 		}
 
 	}
-
-	public void preferencesDialog() {
-		
-		LayoutInflater layout = LayoutInflater.from(this);
-        View view = layout.inflate(R.layout.config, null);
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setView(view);
-		
-        final EditText git = view.findViewById(R.id.GIT_URL);
-		git.setText(preferences.getString(GITURL, ""));
-		
-        final EditText xml = view.findViewById(R.id.XML_URL);
-		xml.setText(preferences.getString(XMLURL, ""));
-		
-		builder.setTitle("PREFERENCES");
-        builder.setCancelable(false).setPositiveButton("OK", new DialogInterface.OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int id) {
-					try {
-						String giturl = git.getText().toString();
-						String xmlurl = xml.getText().toString();
-						if(giturl==null || xmlurl==null) { 
-							Toast.makeText(MainActivity.this,"Invalid GIT or XML URL", Toast.LENGTH_LONG).show();
-							preferencesDialog();
-							return;
-						}
-						preferences.edit().putString(GITURL, giturl);
-						preferences.edit().putString(XMLURL, xmlurl);
-						preferences.edit().commit();
-					} catch(Exception e) {
-						Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
-					}
-				}
-			});
-		builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int id) {                       
-					dialog.cancel();
-				}
-			});
-		builder.show();                                     
-    }
 	
 	public void reposDialog() {
 		
@@ -3302,7 +3309,7 @@ public class MainActivity extends Activity
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(view);
         final EditText reposText = view.findViewById(R.id.REPOS);
-		reposText.setText(preferences.getString(REPOS, "")); 
+		reposText.setText(preferences.getString("repos", "")); 
         builder.setTitle("REPOS");
         builder.setCancelable(false).setPositiveButton("OK", new DialogInterface.OnClickListener() {
 				@Override
@@ -3314,7 +3321,7 @@ public class MainActivity extends Activity
 							reposDialog();
 							return;
 						}
-						preferences.edit().putString(REPOS, repos);
+						preferences.edit().putString("repos", repos);
 						preferences.edit().commit();
 					} catch(Exception e) {
 						Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();

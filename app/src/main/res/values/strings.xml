@@ -3,5 +3,29 @@
 
     <string name="app_name">MyTiMeS</string>
     <string name="hello">Hello!</string>
+
+	<string name="verbose_key">verbose</string>
+	<string name="verbose_title">verbose</string>
+	<string name="verbose_summary">if true then log verbosely</string>
+	
+	<string name="rootdir_key">rootdir</string>
+	<string name="rootdir_default">tmp</string>
+	<string name="rootdir_title">root directory</string>
+	<string name="rootdir_summary">the root directory</string>
+
+	<string name="giturl_key">giturl</string>
+	<string name="giturl_default"></string>
+	<string name="giturl_title">GIT URL</string>
+	<string name="giturl_summary">the URL to GIT</string>
+
+	<string name="xmlurl_key">xmlurl</string>
+	<string name="xmlurl_default"></string>
+	<string name="xmlurl_title">XML URL</string>
+	<string name="xmlurl_summary">the URL to the XML files</string>
+
+	<string name="repos_key">repos</string>
+	<string name="repos_default"></string>
+	<string name="repos_title">REPOS</string>
+	<string name="repos_summary">the repositories</string>
 	
 </resources>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    
+	<PreferenceCategory android:title="General">
+		
+		<CheckBoxPreference
+			android:defaultValue="true"
+			android:key="@string/verbose_key"
+			android:summary="@string/verbose_summary"
+			android:title="@string/verbose_title" />
+        
+		<EditTextPreference
+			defaultValue="@string/rootdir_default"
+			android:key="@string/rootdir_key"
+			android:summary="@string/rootdir_default"
+			android:title="@string/rootdir_title" />
+
+		<EditTextPreference
+			defaultValue="@string/giturl_default"
+			android:key="@string/giturl_key"
+			android:summary="@string/giturl_default"
+			android:title="@string/giturl_title" />
+
+		<EditTextPreference
+			defaultValue="@string/xmlurl_default"
+			android:key="@string/xmlurl_key"
+			android:summary="@string/xmlurl_default"
+			android:title="@string/xmlurl_title" />
+
+		<EditTextPreference
+			defaultValue="@string/repos_default"
+			android:key="@string/repos_key"
+			android:summary="@string/repos_default"
+			android:title="@string/repos_title" 
+			android:lines="8" 
+			android:minLines="6" 
+			android:gravity="top|left" 
+			android:layout_height="wrap_content" 
+			android:scrollbars="vertical"
+			/>
+		
+	</PreferenceCategory>
+	
+</PreferenceScreen>
