@@ -151,7 +151,7 @@ public class MainActivity extends Activity
 					}
 					break;
 				default:
-					println("%s",key);
+					println("unexpected %s",key);
 					break;
 			}
 		} catch (Exception e) {
@@ -187,10 +187,7 @@ public class MainActivity extends Activity
 					authenticateDialog();
 					break;
 				case R.id.PREFERENCES:
-					startPreferencesActivity();
-					break;
-				case R.id.REPOS:
-					reposDialog();
+					startActivity(new Intent(this, MyPreferencesActivity.class));
 					break;
 				case R.id.DOWNLOAD:
 					stack.execute(new Download(), preferences.getString("repos", "").trim().split("\n"));
@@ -211,15 +208,6 @@ public class MainActivity extends Activity
 			print(e);
 		}
 		return true;
-	}
-	
-	private void startPreferencesActivity() {
-		try {
-			Intent intent = new Intent(this, MyPreferencesActivity.class);
-			startActivity(intent);
-		} catch(Exception e) {
-			print(e);
-		}
 	}
 	
 	public static class MyPreferencesActivity extends PreferenceActivity {
