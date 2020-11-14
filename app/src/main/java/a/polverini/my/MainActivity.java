@@ -3,6 +3,8 @@ package a.polverini.my;
 import android.app.*;
 import android.os.*;
 import android.webkit.*;
+
+import java.awt.Dimension;
 import java.io.*;
 import android.widget.*;
 import android.content.*;
@@ -10,13 +12,32 @@ import java.util.*;
 import org.h2.tools.*;
 import java.net.*;
 import org.w3c.dom.*;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.swing.JEditorPane;
+import javax.swing.JFrame;
+import javax.swing.JScrollPane;
 import javax.xml.parsers.*;
 import org.xml.sax.*;
 import java.nio.charset.*;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.sql.*;
 import a.polverini.my.MainActivity.*;
 import android.view.*;
 import a.polverini.my.MainActivity.Stack.*;
+import a.polverini.my.times.WinTiMeS.EGSCC;
+
 import java.text.*;
 import android.view.View.*;
 import android.view.autofill.*;
@@ -25,7 +46,11 @@ import android.preference.*;
 
 public class MainActivity extends Activity 
 {
-	private boolean verbose = true;
+	private static final String TAG = "MyTiMeS";
+	private static final boolean verbose = true;
+
+	private static final String R1_RELEASE_BASELINE = "https://alberto.polverini:Sabr1na$@code.egscc.dev/projects/EGS-CC/repos/a-egscc-releases/raw/sde/baselines/r1_release_baseline.txt?at=refs%2Fheads%2Fmaster";
+	
 	private HtmlHandler handler;
 	private ProgressBar progress; 
 	private WebView webView;
@@ -43,6 +68,98 @@ public class MainActivity extends Activity
 	private Map<String, Specification> specifications = new HashMap <>();
 	private Map<String, Results> testResults = new HashMap <>();
 	
+	
+	try {
+		EGSCC.GIT.auth();
+		EGSCC.GIT.cert();
+		EGSCC.GIT git = new EGSCC.GIT();
+		git.read(url);
+	} catch(Exception e) {
+		System.out.println("ERROR: "+e.getClass().getSimpleName()+" "+e.getMessage());
+	}
+	
+	Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+	    public void run() {
+			System.out.println("----------------------------------------");
+			System.out.println("Have a nice day!");
+	    }
+	}));
+}
+
+private static void webview(String text) {
+	JEditorPane jep = new JEditorPane();
+	jep.setEditable(false);   
+	jep.setContentType("text/html");
+	jep.setText(text);
+	
+	JScrollPane scrollPane = new JScrollPane(jep);     
+	JFrame f = new JFrame("HTML");
+	f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	f.getContentPane().add(scrollPane);
+	f.setPreferredSize(new Dimension(800,600));
+	f.setVisible(true);	
+}
+
+static class EGSCC {
+	
+	static class GIT {
+		
+		public static final String HOME = "https://code.egscc.dev/projects/EGS-CC";
+		
+		public static void auth() {
+			System.out.println("authenticator...");
+			String user = "alberto.polverini";
+			String pswd = "Sabr1na$";
+			Authenticator.setDefault(new Authenticator() { protected PasswordAuthentication getPasswordAuthentication() { return new PasswordAuthentication(user, pswd.toCharArray());} });
+		}
+		
+		public static void cert() throws KeyStoreException, NoSuchAlgorithmException, CertificateException, FileNotFoundException, IOException, UnrecoverableKeyException, KeyManagementException {
+			
+			System.out.println("certificate...");
+			
+			String cert = "c:/cert/csde_alberto.polverini.p12";
+			String pswd = "0baafe17f404fe2e3595f74077cdffcb";
+
+			KeyStore clientStore = KeyStore.getInstance("PKCS12");
+	        clientStore.load(new FileInputStream(cert), pswd.toCharArray());
+
+	        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+	        kmf.init(clientStore, pswd.toCharArray());
+	        KeyManager[] kms = kmf.getKeyManagers();
+
+	        KeyStore trustStore = KeyStore.getInstance("JKS");
+	        trustStore.load(new FileInputStream("c:/cert/cacerts"), "changeit".toCharArray());
+
+	        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+	        tmf.init(trustStore);
+	        TrustManager[] tms = tmf.getTrustManagers();
+
+	        SSLContext sslContext = null;
+	        sslContext = SSLContext.getInstance("TLS");
+	        sslContext.init(kms, tms, new SecureRandom());
+
+	        HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
+		}
+		
+	    public void read(String url) {
+	    	try {
+		        HttpsURLConnection connection = (HttpsURLConnection) new URL(url).openConnection();
+		        // connection.setRequestProperty ( "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:63.0) Gecko/20100101 Firefox/63.0" );
+		        try(BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));) {
+		        	StringBuilder sb = new StringBuilder();
+			        String line;
+			        while ((line = reader.readLine()) != null) {
+			        	sb.append(line);
+			        }
+					webview(sb.toString());
+		        }
+	    	} catch(Exception e) {
+	    		System.out.println("ERROR: "+e.getClass().getSimpleName()+" "+e.getMessage());
+	    	}
+	    }
+	}
+	
+}
 	void importPreferences(String path) {
 		try {
 			File file = new File(rootdir, path);
