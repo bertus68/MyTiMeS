@@ -1,5 +1,5 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    
+
 	<item 
 		android:id="@+id/LOGIN" 
 		android:orderInCategory="100" 
@@ -7,14 +7,15 @@
 		android:icon="@drawable/user1" 
 		android:title="Refresh"/> 
 	
+    <item
+		android:id="@+id/LOG"
+		android:checkable="true"
+		android:title="log" />
+
 	<item
         android:id="@+id/PREFERENCES"
         android:title="Preferences"/>
 	
-	<item
-        android:id="@+id/REPOS"
-        android:title="Repos"/>
-
     <item
         android:id="@+id/DOWNLOAD"
         android:title="Download"/>
